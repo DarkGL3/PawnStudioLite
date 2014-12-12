@@ -1,0 +1,55 @@
+--- LexCPP_old.cxx	2007-01-03 20:39:10.000000000 +0100
++++ LexCPP.cxx	2007-02-18 13:37:44.453440100 +0100
+@@ -59,6 +59,8 @@
+ 	}
+ };
+ 
++int InChrPair = 0; // I don't like this TBH, e-mail me if you have a better solution for this
++
+ static bool IsSpaceEquiv(int state) {
+ 	return (state <= SCE_C_COMMENTDOC) ||
+ 		// including SCE_C_DEFAULT, SCE_C_COMMENT, SCE_C_COMMENTLINE
+@@ -245,8 +247,8 @@
+ 			case SCE_C_STRING:
+ 				if (sc.atLineEnd) {
+ 					sc.ChangeState(SCE_C_STRINGEOL);
+-				} else if (sc.ch == '\\') {
+-					if (sc.chNext == '\"' || sc.chNext == '\'' || sc.chNext == '\\') {
++				} else if (sc.ch == '\\' || sc.ch == '^') {
++					if (sc.chNext == '\"' || sc.chNext == '\'' || sc.chNext == '\\' || sc.chNext == '^') {
+ 						sc.Forward();
+ 					}
+ 				} else if (sc.ch == '\"') {
+@@ -254,10 +256,15 @@
+ 				}
+ 				break;
+ 			case SCE_C_CHARACTER:
+-				if (sc.atLineEnd) {
++				if (InChrPair) {
++					InChrPair--;
++					if (!InChrPair) {
++						sc.ForwardSetState(SCE_C_DEFAULT);
++					}
++				} else if (sc.atLineEnd) {
+ 					sc.ChangeState(SCE_C_STRINGEOL);
+-				} else if (sc.ch == '\\') {
+-					if (sc.chNext == '\"' || sc.chNext == '\'' || sc.chNext == '\\') {
++				} else if (sc.ch == '\\' || sc.ch == '^') {
++					if (sc.chNext == '\"' || sc.chNext == '\'' || sc.chNext == '\\' || sc.chNext == '^') {
+ 						sc.Forward();
+ 					}
+ 				} else if (sc.ch == '\'') {
+@@ -336,7 +343,12 @@
+ 			} else if (sc.ch == '\"') {
+ 				sc.SetState(SCE_C_STRING);
+ 			} else if (sc.ch == '\'') {
+-				sc.SetState(SCE_C_CHARACTER);
++				if (sc.Match("'''") && !sc.Match("''''")) { // ''' is supported by Pawn but leave C/C++ compat here
++					sc.SetState(SCE_C_CHARACTER);
++					InChrPair = 2;
++				} else {
++					sc.SetState(SCE_C_CHARACTER);
++				}
+ 			} else if (sc.ch == '#' && visibleChars == 0) {
+ 				// Preprocessor commands are alone on their line
+ 				sc.SetState(SCE_C_PREPROCESSOR);
